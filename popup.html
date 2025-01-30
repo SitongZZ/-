@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>小红书数据助手</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 10px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    h2 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      background-color: #fe2c55;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    
+    button:hover {
+      background-color: #e62a4d;
+    }
+    
+    button:active {
+      transform: scale(0.98);
+    }
+    
+    #status {
+      margin-top: 15px;
+      padding: 10px;
+      text-align: center;
+      color: #666;
+      font-size: 13px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      min-height: 20px;
+    }
+    
+    /* 添加进度条样式 */
+    .progress-container {
+      margin-top: 15px;
+      display: none;
+    }
+    
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background-color: #f0f0f0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-inner {
+      width: 0%;
+      height: 100%;
+      background-color: #fe2c55;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <h2>小红书数据助手</h2>
+  <button id="startCollect">开始采集数据</button>
+  <button id="exportExcel">导出Excel</button>
+  
+  <!-- 添加进度条 -->
+  <div class="progress-container" id="progressContainer">
+    <div class="progress-info">
+      <span id="progressText">正在统计笔记数量...</span>
+      <span id="progressPercent">0%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-bar-inner" id="progressBarInner"></div>
+    </div>
+  </div>
+  
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html> 
