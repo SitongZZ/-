@@ -56,8 +56,7 @@
     }
     
     .progress-info {
-      display: flex;
-      justify-content: space-between;
+      text-align: center;
       margin-bottom: 5px;
       font-size: 12px;
       color: #666;
@@ -77,23 +76,94 @@
       background-color: #fe2c55;
       transition: width 0.3s ease;
     }
+    
+    #progressContainer {
+      display: none;
+      margin-top: 10px;
+    }
+    
+    #progressBar {
+      width: 100%;
+      height: 20px;
+    }
+    
+    .button {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      cursor: pointer;
+    }
+    
+    #stopButton {
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      display: none;
+    }
+    
+    #collectButton {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+    
+    #exportButton {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+    }
+
+    /* 添加庆祝动画样式 */
+    @keyframes celebrate {
+      0% { transform: scale(0) rotate(0deg); opacity: 0; }
+      50% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .celebration {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      animation: celebrate 0.5s ease-out;
+      z-index: 1000;
+    }
+
+    .celebration.show {
+      display: block;
+    }
+
+    /* 添加渐隐效果 */
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    .fade-out {
+      animation: fadeOut 1s ease-out forwards;
+    }
   </style>
 </head>
 <body>
   <h2>小红书数据助手</h2>
-  <button id="startCollect">开始采集数据</button>
-  <button id="exportExcel">导出Excel</button>
+  <button id="collectButton" class="button">开始采集数据</button>
+  <button id="stopButton" class="button">停止采集</button>
+  <button id="exportButton" class="button">导出Excel</button>
   
-  <!-- 添加进度条 -->
+  <!-- 简化进度显示 -->
   <div class="progress-container" id="progressContainer">
     <div class="progress-info">
-      <span id="progressText">正在统计笔记数量...</span>
-      <span id="progressPercent">0%</span>
+      <span id="progressText">已读取 0 篇笔记</span>
     </div>
     <div class="progress-bar">
       <div class="progress-bar-inner" id="progressBarInner"></div>
     </div>
   </div>
+
+  <!-- 添加庆祝动画元素 -->
+  <div class="celebration" id="celebration">💋</div>
   
   <div id="status"></div>
   <script src="popup.js"></script>

@@ -1,8 +1,15 @@
+// 在文件开头添加一个变量来控制采集状态
+let isCollecting = false;
+
 // 立即添加消息监听器
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'collect') {
+    isCollecting = true;
     collectData().then(sendResponse);
     return true;
+  } else if (request.action === 'stopCollect') {
+    isCollecting = false;
+    console.log('手动停止采集');
   }
 });
 
@@ -16,40 +23,103 @@ async function updateProgress(progress, text) {
 
 async function autoScrollAndCount() {
   return new Promise((resolve) => {
-    let startTime = Date.now();
-    const scrollDuration = 5000; // 滚动5秒
-    
+    let collectedCount = 0;  // 已收集的笔记计数
+    let maxDataIndex = -1;   // 当前最大的data-index值
+    let noUpdateCount = 0;   // 连续未更新的次数
+    const notes = new Map(); // 使用Map存储笔记，防止重复
+
+    // 收集笔记函数
+    const collectNotes = () => {
+      const feedsContainer = document.getElementById('userPostedFeeds');
+      if (!feedsContainer) return false;
+
+      const sections = feedsContainer.querySelectorAll('section.note-item');
+      let hasNewNotes = false;
+
+      sections.forEach(section => {
+        try {
+          const dataIndex = parseInt(section.getAttribute('data-index'));
+          // 如果这个笔记还没有收集过
+          if (!notes.has(dataIndex)) {
+            const href = section.querySelector('.cover, .ld, .mask a')?.getAttribute('href') || '';
+            if (href) {
+              notes.set(dataIndex, {
+                url: `https://www.xiaohongshu.com${href}`,
+                title: section.querySelector('.title')?.textContent.trim() || '',
+                dataIndex: dataIndex
+              });
+              collectedCount++;
+              hasNewNotes = true;
+              console.log(`采集到第 ${collectedCount} 篇笔记, data-index: ${dataIndex}`);
+              // 更新进度显示为已读取的笔记数量
+              updateProgress(Math.min(45, Math.floor(collectedCount * 0.5)), `已读取 ${collectedCount} 篇笔记`);
+            }
+          }
+          
+          // 更新最大data-index
+          if (dataIndex > maxDataIndex) {
+            maxDataIndex = dataIndex;
+            noUpdateCount = 0; // 重置未更新计数
+            hasNewNotes = true;
+          }
+        } catch (error) {
+          console.error('处理笔记数据时出错:', error);
+        }
+      });
+
+      return hasNewNotes;
+    };
+
+    // 开始滚动和采集
     const timer = setInterval(() => {
+      // 检查是否已手动停止
+      if (!isCollecting) {
+        clearInterval(timer);
+        console.log('采集已手动停止');
+        const sortedNotes = Array.from(notes.values())
+          .sort((a, b) => a.dataIndex - b.dataIndex);
+        resolve(sortedNotes);
+        return;
+      }
+
       window.scrollBy(0, 300);
       
-      // 检查是否已经滚动了5秒
-      if (Date.now() - startTime >= scrollDuration) {
-        clearInterval(timer);
-        window.scrollTo(0, 0); // 滚回顶部
-        
-        // 获取所有笔记section
-        const feedsContainer = document.getElementById('userPostedFeeds');
-        const sections = feedsContainer?.querySelectorAll('section') || [];
-        console.log('找到笔记section数量:', sections.length);
-        
-        // 收集所有笔记链接
-        const notes = Array.from(sections).map(section => {
-          const href = section.querySelector('.cover, .ld, .mask a')?.getAttribute('href') || '';
-          return {
-            url: href ? `https://www.xiaohongshu.com${href}` : '',
-            title: section.querySelector('.title')?.textContent.trim() || ''
-          };
-        }).filter(note => note.url);
-        
-        resolve(notes);
+      const hasNewNotes = collectNotes();
+      if (!hasNewNotes) {
+        noUpdateCount++;
       }
-    }, 100);
+
+      // 如果连续5次没有新的笔记，认为已到达底部
+      if (noUpdateCount >= 5) {
+        clearInterval(timer);
+        console.log('未发现新笔记，停止采集');
+        console.log(`共采集到 ${collectedCount} 篇笔记，最大 data-index: ${maxDataIndex}`);
+        
+        // 转换Map为数组并按data-index排序
+        const sortedNotes = Array.from(notes.values())
+          .sort((a, b) => a.dataIndex - b.dataIndex);
+        
+        resolve(sortedNotes);
+      }
+    }, 1000);
+
+    // 修改超时保护
+    setTimeout(() => {
+      if (isCollecting) {
+        clearInterval(timer);
+        console.log('达到最大采集时间，停止采集');
+        const sortedNotes = Array.from(notes.values())
+          .sort((a, b) => a.dataIndex - b.dataIndex);
+        resolve(sortedNotes);
+      }
+    }, 30000);
   });
 }
 
 async function collectData() {
   try {
-    await updateProgress(0, '正在获取博主信息...');
+    // 修改初始提示文本
+    await updateProgress(0, '开始读取笔记...');
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // 获取博主名称和粉丝数
@@ -73,7 +143,6 @@ async function collectData() {
     console.log('粉丝数:', followers);
 
     // 滚动并获取笔记
-    await updateProgress(30, '正在加载笔记...');
     const notes = await autoScrollAndCount();
     const totalNotes = notes.length;
     console.log('找到笔记数量:', totalNotes);
@@ -83,7 +152,7 @@ async function collectData() {
     
     for (let i = 0; i < notes.length; i++) {
       try {
-        const section = document.querySelectorAll('section')[i];
+        const section = document.querySelector(`section[data-index="${notes[i].dataIndex}"]`);
         if (!section) continue;
 
         // 获取互动数据
@@ -103,10 +172,14 @@ async function collectData() {
           if (text.includes('分享')) stats.shares = text.replace(/[^0-9]/g, '');
         });
         
+        // 获取话题标签
+        const topics = Array.from(section.querySelectorAll('.tag')).map(tag => tag.textContent.trim());
+        
+        // 更新笔记数据
         notes[i] = {
           ...notes[i],
           ...stats,
-          topics: Array.from(section.querySelectorAll('.tag')).map(tag => tag.textContent.trim())
+          topics: topics || []
         };
         
         console.log(`采集笔记 ${i + 1}/${totalNotes}:`, notes[i]);
